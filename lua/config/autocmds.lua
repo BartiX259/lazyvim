@@ -31,6 +31,43 @@ vim.api.nvim_create_autocmd("CursorMoved", {
   end,
 })
 
+-- CHEZMOI AUTOCMDS
+
+-- When opening a file managed by chezmoi, open the source file instead.
+vim.api.nvim_create_autocmd("BufReadPost", {
+  group = vim.api.nvim_create_augroup("ChezmoiEditHook", { clear = true }),
+  pattern = "*",
+  callback = function(ev)
+    local filepath = vim.fn.expand("%:p")
+
+    -- Prevent infinite loop
+    if filepath:find("/.local/share/chezmoi/") then
+      return
+    end
+    local cmd = { "chezmoi", "source-path", filepath }
+    local output = vim.fn.system(cmd)
+
+    if vim.v.shell_error == 0 then
+      local source_path = vim.trim(output)
+      local original_ft = vim.bo[ev.buf].filetype
+      local original_buf = ev.buf
+
+      if source_path ~= filepath then
+        vim.schedule(function()
+          vim.cmd("edit " .. vim.fn.fnameescape(source_path))
+          if original_ft ~= "" then
+            vim.bo.filetype = original_ft
+          end
+          if vim.api.nvim_buf_is_valid(original_buf) then
+            vim.api.nvim_buf_delete(original_buf, { force = true })
+          end
+          vim.notify("Redirected to chezmoi source file", vim.log.levels.INFO)
+        end)
+      end
+    end
+  end,
+})
+
 -- Automatically apply chezmoi config
 vim.api.nvim_create_autocmd("BufWritePost", {
   group = vim.api.nvim_create_augroup("ChezmoiConfigHook", { clear = true }),
