@@ -79,6 +79,14 @@ vim.api.nvim_create_autocmd("BufWritePost", {
     -- only apply that specific file. This is faster.
     local file = ev.match
     if not file:match("chezmoi.toml") then
+      local target_path = vim.trim(vim.fn.system({ "chezmoi", "target-path", file }))
+      if vim.v.shell_error ~= 0 then
+        return
+      end
+      vim.fn.system({ "chezmoi", "source-path", target_path })
+      if vim.v.shell_error ~= 0 then
+        return
+      end
       table.insert(args, "--source-path")
       table.insert(args, file)
     end
